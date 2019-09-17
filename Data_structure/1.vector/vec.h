@@ -57,11 +57,11 @@
 */
 
 #include "stdafx.h"                   //此头文件为VS下需要使用的，其他编译器可能不需要
-#include <string>  
-#include <memory>  
-#include <utility>   
-#include <initializer_list>  
-#include <algorithm>  
+#include <string>
+#include <memory>
+#include <utility>
+#include <initializer_list>
+#include <algorithm>
 #include <iostream>
 #include <vector>
 
@@ -125,7 +125,7 @@ void vec<T>::insert(unsigned rank, const T& t)
 	if (rank > size()) return;
 	if (empty() && rank > 0) return;
 
-	push_back(*(first_free - 1));             
+	push_back(*(first_free - 1));
 }
 
 template<typename T>
@@ -252,4 +252,3 @@ T& vec<T>::back()
 	check();
 	return *(--first_free);
 }
-
