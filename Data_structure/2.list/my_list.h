@@ -671,19 +671,3 @@ void my_list<T>::insert_after(Node<T>* p, Node<T> *t)
 	}
 }
 
-
-int main()
-{
-	my_list<int> ln{ 2,7,8,12,7,9,22,35};
-	//ln.sel_sort();
-	ln.insert_sort();
-	for (auto a = ln.begin(); a != ln.end(); a++)
-	{
-		cout << *a << endl;
-		cout << a->get() << endl;
-	}
-
-	std::system("pause");
-    return 0;
-}
-
