@@ -3,10 +3,11 @@
 	----------------------------------------------------------------------
 	0.特点：
 		每个节点的都是“值”大小进行组织，规则为 x.lChild < x , x.rChild > x
-		所以，在二叉搜索树中，可以进行有效率的搜索，其搜索的效率为 O(logn）
+		所以，在二叉搜索树中，可以进行有效率的搜索，其搜索的效率为 O(h) 节点
+		的高度决定了搜索的效率
 		Node 为节点类
-	
-	0.5 析构方法： 
+
+	0.5 析构方法：
 		因为树结构存储的是 Node* 类型指针形，需要通过遍历所有节点，并且释放
 		每个节点内存，来进行析构
 
@@ -21,7 +22,7 @@
 
 	2.功能逻辑：
 
-		2.1 查找逻辑：	  
+		2.1 查找逻辑：
 		Node* seach(const T& t)
 		{
 			Node* x = _root;
@@ -52,7 +53,7 @@
 			Node* x = seach(t);              //寻找插入位置
 			if(_root&&x) return NULL;        //节点存在，可以直接返回，或者自定义一些操作，例如增加节点里面的计数变量
 			else                             //x为空，表示树中没有该节点，构造一个新的节点进行与hot的连接
-			{	
+			{
 				Node* posi = new Node(t);
 
 				//连接插入节点和父节点
@@ -94,7 +95,7 @@
 			else if(x->lChild && x->rChild) //删除节点有两个孩子
 			{
 				Node* p = x;
-				while (p->lChild) 
+				while (p->lChild)
 					p = p->lChild;
 
 				swap(x,p);
@@ -137,7 +138,7 @@ template<typename T> using bst_BinNodePosi = bst_BinNode<T>* ;
 template<typename T> class bst_tree;
 
 template<typename T>
-class bst_BinNode 
+class bst_BinNode
 {
 	template<typename B> friend void swap_bst_node(bst_BinNodePosi<B> a, bst_BinNodePosi<B> b);
 	template<typename A, typename VST> friend void visitAlongLeftNode(bst_BinNodePosi<A>, VST visit, my_stack<bst_BinNodePosi<A>> &s);
@@ -164,7 +165,7 @@ public:
 	bool operator ==(const bst_BinNodePosi<T> b) { return value == b->value; };
 	bool operator !=(const bst_BinNodePosi<T> b) { return value != b->value; };
 
-	
+
 	bst_BinNodePosi<T> succ();
 	T& get_value() { return value; };
 	bool operator=(bst_BinNodePosi<T> b)
@@ -175,7 +176,7 @@ public:
 		rChild = b->rChild;
 		parent = b->parent;
 	}
-	
+
 	T data;
 	string key;
 	T value;
@@ -271,16 +272,16 @@ bst_BinNodePosi<T> bst_tree<T>::seach(const T&t)
 template<typename T>
 bst_BinNodePosi<T> bst_tree<T>::insert(const T&t)
 {
-	
+
 	bst_BinNodePosi<T> posi = seach(t);
 	if (posi&&posi!=_root) return NULL;
 
 	size++;
 	posi = new bst_BinNode<T>(t, hot);
-	
+
 	if (!hot) return _root = posi;
 
-	if (posi->get_value() > hot->get_value()) 
+	if (posi->get_value() > hot->get_value())
 		hot->rChild = posi;
 	else
 		hot->lChild = posi;
@@ -304,7 +305,7 @@ bst_BinNodePosi<T> bst_tree<T>::erase(const T&t)
 				hot->rChild = NULL;
 			else hot->lChild = NULL;
 		}
-		
+
 		delete posi;
 		if (!hot)
 			posi = _root = NULL;
@@ -325,11 +326,11 @@ bst_BinNodePosi<T> bst_tree<T>::erase(const T&t)
 			}
 			else hot->rChild = p;
 		}
-		
+
 		swap_bst_node(posi, p);
 
 		if (p->rChild)
-		{   
+		{
 			p->parent->rChild = p->rChild;
 		}
 
