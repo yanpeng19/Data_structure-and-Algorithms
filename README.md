@@ -4,6 +4,7 @@
 这是一篇学习完邓俊辉老师的数据结构课程后，对课程中讲到的各种 数据结构 和 算法 的总结、回顾和归纳。
 
 课程地址：http://www.xuetangx.com/courses/course-v1:TsinghuaX+30240184X+sp/about
+所有代码都是在: WINDOW系统下 VS2017 编写和运行的
 
 # 数据结构
 ## 向量
