@@ -33,8 +33,8 @@
 		2.1 search()            // 查找操作 
 		2.1 insert()            // 插入操作
 		2.2 erase()             // 删除操作：
-		2.3 solveOverflow()     //（插入导致的）节点上溢处理：
-		2.4 solveUnderflow()    //（删除导致的）节点下溢处理：
+		2.3 solveOverflow()     // 检查并处理（插入导致的）节点上溢：
+		2.4 solveUnderflow()    // 检查并处理（删除导致的）节点下溢：
 		
 	3.实现逻辑
 		3.0 查找 search(const T& t)      (1).从根节点开始遍历，使用二分查找，确认节点位置，如果节点在该层存在，就直接返回
@@ -86,6 +86,275 @@
 											 solveOverflow(_hot);  //检查是否发生上溢出，并处理的函数
 										  }
 
+		3.2 检查并处理上溢 solveOverflow()		(1). 如果节点 X ， x->size() >= _order;那么久发生了上溢出；
+												(2). 首先寻找该节点的中间位置的元素， mi =  key.size()/2;
+													 并将节点分为连个新节点：
+													 
+													 原来的节点部分： key[0]-k[mi-1] 内容
+													 新生节点： BT_Node new = BT_Node( key[mi+1]~key[key.size()-1])
+													 
+													 并相应的也将他们的 存放子指针的 向量Chlid 进行分裂， 
+													 左半边:  Child[0~mi]
+													 右半边： Child[mi+1~Child.size()-1] 并将他的内容给 new;
+
+												(3). 将key[mi] 提升到上升一层中，并在  parent = x->parnet 
+													 在 parent->key 合适位置插入 key[mi]
+													 插入位置的为：insert_posi = parnet.search(key[mi]);
+													 parent.key.insert(insert_posi+1,key[mi];   //插入key[mi] 到父节点中
+
+													 //为什么插入位置是 insert_posi+1 ? 因为我定义的查找函数返回的是 不大于查找值的节点RANK
+													 //而我自定义的插入操作 是在 RANK 的位置上 直接插入的
+													 // 例如 rank = 0； insret(0,new) ,那么就会在 key[0] 插入 new
+													 //方便理解，特此声明
+
+													 同时相应的也在 paretn.Child 进行相应的插入分裂出来的分支，
+													 parent->Child.insert( insert_posi+2,new)
+
+													 // 为什么 新插入节点new左边没有进行 子节点接入？
+													 // 因为 parent->key[insert_posi+1] == key[mi]
+													 // 那么 paretn->child[insert_posi+1] 就是小于等于 key[mi] 分支也就是 原来的 x 节点
+													 // 所以无需特意操作
+
+													 * 极限情况 1： x-parnet 不存在，说明 x 是根节点
+													 * 此时进行 ： _root = new BT_Node(key[mi],x,new);
+													 * 生成一个新节点插入 key[mi] 并连接 x 和 new
+												(4). 遍历new_node->child，并让他们指向new_node
+													 一般情况是在最底层进行插入操作的，但是，如果上溢向上传导之后，如果在上一层同样发生了上溢出，
+													 那么需要遍历新分裂出来的节点，让他们指向 new_node
+												(5).因为节点上溢可能会导致，父节点parent 上溢出；所以如果发生了上溢，那么持续检查上一个节点
+												(*).伪代码：
+												solveOverflow(BT_Node x)
+												{
+													if(x.key.size()>=_order)
+													{
+														//发生了上溢出
+														using rank = unsigned;
+														rank mi = x.key().size()/2;
+														T value_mi = key[mi];
+
+														BT_Node* new_node = BT_Node(x,mi+1,key.size()-1);
+														// 用x.key[mi+1]~x.key[key.size()-1] 以及 x.child[mi]~x.child[chiled.size()-1]
+														// 初始化new_node
+
+														//删除掉key和chid mi之后的值
+														for(int i = x.key().size()-1; i>=mi;i--)
+														{
+															x->key.pop();
+															x->child.pop();
+														}
+
+														BT_Node* parnet = x->parnet;
+
+														//极限情况1，x为根节点,生成节点并且返回即可
+														if(!parent) 
+														{
+															_root = new BT_Node(value_mi,x,new);
+															new_node -> parent = _root;
+															_hot -> parent = _root;
+															return;
+														}
+
+														//否则将value_mi提升到 parent中去,并接入new_node;
+														rank posi = parent->key.search(value_key);
+														parent->key.insert(posi+1,value_key);
+														parent->child.insert(posi+2,new);
+														new_node->parnet = parent;
+
+														//并且继续向上一层检查
+														solveOverflow(parent);
+													}
+												}
+
+
+		3.3 删除 erase(const T& t)				(1).进行搜索 BT_Node* p = search(t);
+												(2).如果 p 不存在直接返回，如果 P 为真则继续
+												(3).在 P节点中 找到 t 的位置 int pos = p.key.search(t);
+												    为了不影响结构，不停的 将 寻找中序序列意义下的节点 并交换
+												(4).此时p一定是叶节点，直接删除p.key[0],并执行 p->child.pop();
+												(5).p的删除操作可能导致下溢出，进行下溢检查，solveUnderflow(p);
+												(*).伪代码：
+												erase(cont T&t)
+												{
+													BT_Node* p = search(t);
+													if(!p) return;
+
+													using rank = unsigned int;
+													rank posi = p->key.serach(t);
+
+													BT_Node* c = p->child[pos+1];
+													if(c) p.key[pos] = c.key[0];
+													p = c;
+													c = c->child[1];
+													//将t降到叶节点，再删除
+													while(c)
+													{
+														p->key[0] = c.key[0];
+														p = c;
+														c = c->child[1];
+													}
+
+													p->key.erase(0);
+													p->child->pop();
+													solveOverflow(p);
+													return ture;
+												}
+
+		3.4 下溢出检测		(1).首先进行判断 是否发生下溢出，即 x->key.size() < （order-1）/2; 如果未发生，直接返回
+							(2).如果发生了下溢出，那么有两种解决办法，分别是： 合并，旋转； 首先尝试旋转借出元素
+							(2.1) 借出处理方法：  找到 节点 x 的左右节点，分别是 l，r;
+												  l或者r 存在，且 key.size()>=(order/2)+1;
+												  那么就可以通过“借出”一个元素，来给节点 x ，让他不再下溢。
+												  
+												  a.找到l/r,并确认借出的元素值，如果是l，那么value=l->key[0];
+													如果是r 那么 value = r->key[size()-1];
+												  b.查找 value 在 parent 中 合适的交换元素
+												    int pos_parent = parent->key.search(vllue);
+													如果 是 l 那么 pos_parent = pos_parent + 1;
+													如果 是 r 那么 pos_parent 无需改变
+												  c.将parent 父节点中 pos_parent的元素用 value替代，并且将parent原数值给 x
+													pos_value = parent->key[pos_parnet];
+												    parent->key[pos_parnet] = value;
+
+													如果是 l 情况，x->key.insert(0,pos_value);
+													如果是 r 情况，x->key.push_back(pos_value);
+												  d.将l，或r节点的 值删除，
+													erase(l,0) 或者 erase(r,size()-1);
+													##这个删除可能导致向下传导，多个节点连环下溢出
+							(2.2) 合并处理办法： 当节点 x 不存在 l 或者 r节点，以及l，r节点的数不够借出时，就需要进行合并操作
+												 思路是 寻找左边的l节点，然后再尝试 右边的r 节点，然后找到父节点中 对应的 key[pos_parent]
+												 将 parent->key[pos_parent]拿下来，作为粘合剂，将l/r + parent->key[pos_parent] + x 生成一个新节点
+												 并且 调整parent.child
+
+												 ##如果 l/r key().size<(order-1)/2 ,且 x->key.size()<(order-1)/2
+												 ##那么 l/r.key()+x.key()+1 一定不会发生上溢出，至多 和 (order-1） 相等
+												 ## (order-1)/2*2 >= l.key().size() * 2
+												 ## (order-1)/2*2 >= l.key().size() + (x.key.size()+1
+												 ## 该公式成立，新节点不会上溢
+
+												 a.在parent节点中，寻找对应的父节点位置： int pos_parent = parent->key.search(x->key[0])
+												   l 情况， value_parent = parent[pos_parent+1]
+												   r 情况， value_parent = parent[pos_parent];
+												 b. 并将 value_parent下降， 作为粘合剂 l/r 以及 x 节点粘合起来，
+												    如果是l节点情况，那么： new_node.key = l.key()+value_parent + x.key()
+													如果是r节点情况，那么： new_node.key = x.key()+value_parnet+r;
+													并相应合并 child 部分
+												 c.在parent中，将对应的 parnet->child[pos_parent]/parent->child[pos_paretn+1]剔除
+												 d.因为parent 的数值减少了1个，所以需要在对 parent 进行检查是否下溢
+													solveUnderflow(parent);
+												## 特殊情况，当x.key.size==0.且不存在l，r节点的时候；直接删除节点x，并将parent中对应child置为空
+												## 特殊情况2，当x.key.size()==0 且 x = _root 时候，特殊处理流程：
+												   a.寻找x是否有子节点，_root_lc = x->child[0] ，如果 _root_lc为NULL，说明树已经空，删除_root即可
+												   b.如果存在 _root_lc ,那么将 x-> key[0] 下降到节点 _root_lc + x + _root_rc 中，并交换到最底层，再删除
+												     再检测是否下溢出
+
+												(*) 伪代码：
+												solveUnderflow(x)
+												{
+													如果没有下溢，那么返回
+													if(x->key.size()>(order-1)/2) return ;
+													//特殊情况x为根节点，如果空了，那_root置为空，否则不做操作
+													if(x == _root)
+													{
+														if(x.size()==0)
+														{
+															delete x;
+															_root = NULL;
+														}
+														return;
+													}
+
+													BT_Node* parent = x->parent;
+													BT_Node* l = NULL;
+													BT_Node* r = NULL;
+													unsigned pos_parent;
+													unsigned pos_x;
+													T value_par;
+
+													//在parent中找到 l和r
+													for(pos_x=0;i<parent.child.size();i++)
+													{
+														if(parnet.child[pos_x]== x)
+														{
+															if(i-1>=0) l = parent->child[i-1];
+															if(i+1<parent.child.size()) r = parent->child[i+1]
+														}													
+													}
+
+													//特殊情况，x.size()==0；
+													if(x->key.size()==0&&!l&&!r)
+													{
+														// l 和 r 都不存在，直接把节点删除
+														delete(x);
+														parent[pos_x] = NULL;
+														return;
+													}
+													//进入正式流程，先尝试旋转,先左后右边
+
+													//左节点存在，且可以旋转情况
+													if(l&&l->key.size()>(order-1)/2))
+													{
+														pos_parent = parent->key.serach(x->key[0]);
+														value_par = parent->key[pos_parent];
+														parent.key[pos_parent] = l.key[l.size()-1];
+														x->key.insert(0,value_pos);
+														x->child.push_back(NULL);
+														erase(l,l->key.size()-1);
+														return treu;
+													}
+													if(r&&r->key.size()>(roder-1)/2) //右节点存在，且可以旋转情况
+													{
+														pos_parent = parent->key.search(r->key[0]);
+														value_par = parent->key[pos_parent];
+														parent->key[pos_parent] = r.key[0];
+														x->key.push_back(value_par);
+														x->child.push_back(NULL);
+														erase(r,0);
+														return;
+													}
+
+													//那么下面进入和并流程
+													if(l)
+													{
+														//确定父节点中合并的值
+														pos_parent = parent->key.search(x->key[0]);
+														value_par = paretn->key[pos_parent];
+														l->key.push_back( value_par);
+														//把节点合并
+														for(int i=0;i<x->key.size();i++)
+														{
+															l->key.push_back(x->key[i]);
+															l->child.push_back(x->child[i];
+														}
+														//删除并检查父节点
+														delete(x);
+														x = NULL;
+														parent->key.erase(pos_parent);
+														parent->child.erase(pos_parent+1);
+														solveUnderflow(parent);
+														return;
+													}
+													else
+													{
+														//确定父节点中合并的值
+														pos_parent = parent->key.search(r->key[0]);
+														value_par = paretn->key[pos_parent];
+														x->key.push_back( value_par);
+														for(int i=0;i<x->key.size();i++)
+														{
+															x->key.push_back(x->key[i]);
+															x->child.push_back(x->child[i];
+														}
+														//删除节点并检查父节点
+														delete(r);
+														r = NULL;
+														parent->key.erase(pos_parent);
+														parent->child.erase(pos_parent+1);
+														solveUnderflow(parent);
+														return;
+													}
+												}
+		   
+
 */
 
 #pragma once
@@ -94,6 +363,7 @@
 #include <fstream>
 #include <iostream>
 #include "BT_Node.h"
+#include <queue>
 
 using namespace std;
 
@@ -104,8 +374,20 @@ class b_tree
 {
 	friend iostream;
 public:
-	b_tree(const unsigned &t) :_order(t-1) { _root = _hot = NULL; _size = 0; };
-	~b_tree() = default;
+	b_tree(const unsigned &t) :_order(t) { _root = _hot = NULL; _size = 0; };
+	~b_tree()
+	{
+		queue <BTNodePosi<T>> q;
+		q.push(_root);
+		while (!q.empty())
+		{
+			BTNodePosi<T> temp = q.front();
+			q.pop();
+			for (auto a : temp->child)
+				if (a) q.push(a);
+			delete temp;
+		}
+	}
 
 	BTNodePosi<T> search(const T& t);
 	bool insert(const T&t);
@@ -114,49 +396,87 @@ public:
 	void solveOverflow(BTNodePosi<T>);
 	void solveUnderflow(BTNodePosi<T>);
 
-	void out()
+	void out() //按层级输出树
 	{
-		BTNodePosi<T> x;
-		x = _root;
-		for (auto a : x->key)
+		queue<BTNodePosi<T>> q, q_line;
+		q.push(_root);
+		int j=1;
+		int z = 0;
+		/*
+			输出树的函数-按照层级输出：
+			1.使用两个队列来输出层级 分别 q 总队列，q_line 层级队列
+			2.将节点压入根节点后，判断下一个层级有多少有效节点，并将这些节点给q_line
+			3.q_line 输出行
+			4.q 控制换行符
+		*/
+		while (!q.empty())
 		{
-			cout << a << " ";
-		}
-		cout << endl;
-
-		for (auto x : _root->child)
-		{
-			if (x)
+			for (int i = 0; i < j; i++)
 			{
-				for (auto a : x->key)
+				BTNodePosi<T> temp = q.front();
+				q.pop();
+				q_line.push(temp);
+			}
+			
+			j = 0;
+
+			while (!q_line.empty())
+			{
+				BTNodePosi<T> temp = q_line.front();
+				q_line.pop();
+
+				cout << "| ";
+				for (auto a : temp->key)
 				{
 					cout << a << " ";
+					z++;
 				}
-				cout << endl;
+				cout << " | ";
+				
+				
+				for (auto a : temp->child)
+				{
+					if (a)
+					{
+						q.push(a);
+						j++;
+
+						//父子节点不匹配检测
+						if (a->parent != temp)
+						{
+							cout << endl;
+							cout << "here have error" << endl;
+							cout << "node " << a << " -> " << a->key[0] << " parnet is not" << temp << " -> " << temp->key[0] << endl;
+							cout << "is " << a->parent << " -> " << a->parent->key[0] << endl;
+						}
+					}
+				}
 			}
+			cout << endl;//此时j为下一行有效节点数
+
 		}
+		cout << "total : " << z << endl;
 	}
 
 protected:
 	BTNodePosi<T> _root;
 	BTNodePosi<T> _hot;
 	int _size;     //
-	int _order;    //阶次 即max[child->size()]
+	int _order;    //阶次 即_order-1 = max[child->size()]
 };
 
 template<typename T>
 BTNodePosi<T> b_tree<T>::search(const T& t)             //成功则return x,失败则return NULL
 {
-	int i;
-	BTNodePosi<T> x = _root;
 	_hot = NULL;
-	while (x)
+	int pos;
+	BTNodePosi<T> x = _root;
+	while(x)
 	{
-		i = x->key.search(t);
-	
-		if (x->key[i] == t) return x;
+		pos = x->key.search(t);
+		if (pos!=-1 && x->key[pos] == t) return x;
 		_hot = x;
-		x = x->child[i + 1];
+		x = x->child[pos + 1];
 	}
 	return x;
 }
@@ -170,38 +490,27 @@ BTNodePosi<T> b_tree<T>::search(const T& t)             //成功则return x,失败则r
 //                   ->  rank i = x->key.search(t) ; x->key.insert(i,t); x->child.insert(i+1,NULL);
 //                   ->  solveOverflow 判断是否超阶次
 //                       if(x->key->capcity() >= _order) 则规模超阶 ,需要调整
-//4.调整方法：分裂   ->  a.RANK i = m/2+(m%2)?0;1;
-//                   ->  b.将 key[i] 给 *this->parent 节点
-//                       c.new BTnode l(key=0->i-1,child=0->i-1)  new BTNode r(key=i+1->end child= i+1->end)
-//                       d.使得t提升后的  将新得到的l,r插入到 parent->key[i] parent->key[i+1]
-//                       e.循环检查 parent 直到_root
-//                       f.极端情况： _root 节点上溢，需要提升一个新的节点    solveOverflow() {if(x==_root) _root= new BTNode(t,l,r)}
 template<typename T>
 bool b_tree<T>::insert(const T& t)
 {
-	int rank;
+	int pos;
 	if (!_root)
 	{
 		_root = new BT_Node<T>(t, BTNodePosi<T>(NULL), BTNodePosi<T>(NULL)); //极端情况，树不存在_root
 		_size++;
 		return true;
 	}
-	BTNodePosi<T> x = _root;
-	
+	BTNodePosi<T> x = search(t);
+	//节点存在直接返回
+	if (x) return false;
 
-	while (x)
-	{
-		rank = x->key.search(t); //rank 范围  -1~ key.size()
-		if (!x->key.empty() && x->key[rank] == t) return false; //关键词非空且值相同 说明数值存在无需进行插入
-		_hot = x;
-		x = x->child[rank+1];
-	}
-	//程序到此 说明 x 为外部节点，_hot已经到了合适位置，直接在hot[rank]位置进行插入
-	_hot->key.insert(rank+1, t);
+	pos = _hot->key.search(t);
+	_hot->key.insert(pos + 1, t);
 	_hot->child.push_back(NULL);
 
 	solveOverflow(_hot);
 	_size++;
+
 
 	return true;
 }
@@ -209,28 +518,22 @@ bool b_tree<T>::insert(const T& t)
 /*
 检查是否上溢出：
 1. 检查_hot->key.size() 是否大于 order;如果大于则进行下一步
-2. 分裂节点_hot 使之 size() 减少,分裂点 pos = size()/2 + 1节点
-3. 原节点 复制 key[pos+1]-key[size()-1] 以及 child[pos] 至 child[size()-1]
-   到 新节点中 n_node = new(BT_Node<T>),并且执行复制一一更新
-4. 删除原节点 key[pos]及之后的内容，删除原节点 child (key.size()+1) 之后的内容
-5. 在上一层_hot->parent中 进行插入
-   a.如果_hot->parent为真 则rank = _hot->parent->seach(t);BN
-     child.insert(rank,n_node)
-   b.如果_hot->paren为假,则new(child[pos],*this,n_node) = _root;
+2. 找到中间的元素 mi,将数据分成两部分，l ,r 
+3. 把mi提升到上一层，并且连接l和r
 */
 template<typename T>
 void b_tree<T>::solveOverflow(BTNodePosi<T> _hot)
 {
 
-	if (_hot->key.size() > _order)
+	if (_hot->key.size() > _order-1)
 	{
-		// pilt_pos 即 _hot[spilt_pos] 这个节点,从0开始计算
-		int spilt_pos = (_hot->key.size() / 2);
+		int mi = (_hot->key.size() / 2);
 
-		BTNodePosi<T> new_node = new BT_Node<T>(_hot, spilt_pos);
-		T t = _hot->key[spilt_pos];
+		//新节点拷贝mi~size()的 key 和child
+		BTNodePosi<T> new_node = new BT_Node<T>(_hot, mi);
+		T value_mi = _hot->key[mi];
 
-		for (int i = _hot->key.size() - 1; i >= spilt_pos; i--)
+		for (int i = _hot->key.size() - 1; i >= mi; i--)
 		{
 			_hot->key.pop_back();
 			_hot->child.pop_back();
@@ -239,25 +542,30 @@ void b_tree<T>::solveOverflow(BTNodePosi<T> _hot)
 		BTNodePosi<T> paren = _hot->parent;
 		if (!paren)
 		{
-			_root = new BT_Node<T>(t, _hot, new_node);
+			//极限情况 节点为_root;
+			_root = new BT_Node<T>(value_mi, _hot, new_node);
 			_hot->parent = _root;
 			new_node->parent = _root;
+			for (auto a : new_node->child)
+			{
+				if (a)
+					a->parent = new_node;
+			}
+			return;
 		}
-		else       
-		{
-			// 上一节点的正确插入位置 在praen_pos之后
-			int parent_pos = paren->key.search(t);
-			paren->key.insert(parent_pos + 1, t);
-			paren->child.insert(parent_pos + 2, new_node);
-			new_node->parent = paren;
-		}
+		     
+		// 上一节点的正确插入位置 在praen_pos之后
+		int parent_pos = paren->key.search(value_mi);
+		paren->key.insert(parent_pos + 1, value_mi);
+		paren->child.insert(parent_pos + 2, new_node);
+		new_node->parent = paren;
 
-		auto x = _hot->parent;
-		while (x)
+		for (auto a : new_node->child)
 		{
-			solveOverflow(x);
-			x = x->parent;
+			if (a)
+				a->parent = new_node;
 		}
+		solveOverflow(paren);
 	}
 }
 
@@ -266,181 +574,171 @@ void b_tree<T>::solveOverflow(BTNodePosi<T> _hot)
 1.seach(t) 查找元素是否存在树中，如果存在则进入删除流程
 2.删除的流程： 按照流程先在key中找到 t的位置pos，然后将t与child[pos+1][0] 交换 
                直到t到最底层，即 !child[pos+1],然后 执行 key.erase(t) child.pop_back()
-			    auto x = _root;
-				_hot = NULL;
-			   while(x)
-			   {
-			        pos = x->key.seach(t);
-					if(x->key[pos]==t) //找到了
-					{
-					    while(x->child[pos+1])
-						{
-						    x->key[pos] = x->child[pos+1]->key[0];
-							_hot = x;
-						    x = x->child[pos+1]
-						}
-						到此x 为外部节点
-						_hot->key.erase(t);
-						_hot->child.pop_back();
-						return ture;
-					}
-					
-					_hot = x;
-					x = x->child[pos+1];
-			   }
-			   没找到最终 
-			   return false;
 3.检查节点是否发生了下溢
 */
 template<typename T>
 bool b_tree<T>::erase(const T& t)
 {
-	BTNodePosi<T> x = _root;
-	while (x)
+	if (!_root) return false;
+
+	int pos;
+	BTNodePosi<T> x = search(t);
+	if(x) pos = x->key.search(t);
+	else
 	{
-		int pos = x->key.search(t);
-		if (pos == -1)
+		cout << "find fail:"  << t << endl;
+		return false;
+	}
+
+	
+	if (x == _root)
+	{
+		//极端情况 x 为根节点 且 size = 1 删除节点即可
+		if (_size == 1)
 		{
-			_hot = x;
-			x = x->child[pos + 1];
-			continue;
+			delete(_root);
+			_root = NULL;
+			return true;
 		}
-		if (x->key[pos] == t)
+		//极端情况2 x 为根节点且 只有一个数
+		if (x->key.size() == 1)
 		{
-
-			_hot = x;
-			//极端情况 x 为根节点 且 size = 1
-
-			while (x->child[pos + 1])
+			BTNodePosi<T> l = x->child[0];
+			BTNodePosi<T> r = x->child[1];
+			
+			l->key.push_back(x->key[0]);
+			for (int i = 0; i < r->child.size(); i++)
 			{
-				x->key[pos] = x->child[pos + 1]->key[0];
-				_hot = x;
-				x = x->child[pos + 1];
+				if (i < r->key.size())
+					l->key.push_back(r->key[i]);
+				l->child.push_back(r->child[i]);
+					if (r->child[i]) r->child[i]->parent = l;
 			}
-			//极端情况 x 为叶节点
-			if (_hot == x)
+			delete(x);
+			delete(r);
+			x = r = NULL;
+			l->parent = NULL;
+			_root = x = l;
+			//至此，原来的_root已经下降成功，接下来正常处理即可，不过因为_root的size超标，需要再做一次上溢出检测
+
+			pos = x->key.search(t);
+			BTNodePosi<T> c = x->child[pos + 1];
+			if (c)
 			{
-				_hot->key.erase(pos);
-				_hot->child.pop_back();
+				while (c)
+				{
+					_hot = c;
+					c = c->child[0];
+				}
+				//至此 x 为叶节点
+				x->key[pos] = _hot->key[0];
+				_hot->key.erase(0);
+				_hot->child.pop();
+				solveUnderflow(_hot);
+				solveOverflow(_root);
+				return true;
 			}
 			else
 			{
-				_hot->key.erase(0);
-				_hot->child.pop_back();
-
+				//x 为叶节点情况
+				x->key.erase(pos);
+				x->child.pop();
+				solveUnderflow(x);
+				solveOverflow(_root);
+				return true;
 			}
-			solveUnderflow(_hot);
-			_size--;
-			return true;
+			
 		}
-		_hot = x;
-		x = x->child[pos + 1];
+			
 	}
-	return false;
+
+	//一般情况，将x[pos]于succ(x) 交换，然后删除
+	pos = x->key.search(t);
+	BTNodePosi<T> c = x->child[pos+1];
+	
+	if (c)
+	{
+		while (c)
+		{
+			_hot = c;
+			c = c->child[0];
+		}
+		//至此 x 为叶节点
+		x->key[pos] = _hot->key[0];
+		_hot->key.erase(0);
+		_hot->child.pop();
+		solveUnderflow(_hot);
+		return true;
+	}
+	else
+	{
+		//x 为叶节点情况
+		x->key.erase(pos);
+		x->child.pop();
+		solveUnderflow(x);
+		return true;
+	}
 }
 
 /*
 	下溢出逻辑：
 	节点x经过删除后，可能x->key.size() < (_order/2)-2  
-	                     x->child.size() < (_order/2)-1;
-	if(x->key.size < (_order/2)-2) ;
-
 	为了保证树的高度以及利用率，需要进行 a.旋转 b.合并
 
-	优先进行a.旋转操作，向其左或者右节点
-	（l,r && l.size()>=_roder/2)
-	parent = x->parent;
-	pos_parent = parent->key.search(x->key[0])  //  找到父节点中 X的位置
-	然后将l[size()-1] 或者 r[0] 与 parent->key[pos] 交换数值,并将
-	parent->key[pos] 插入到 x->key中 头部或者尾部
-	x->child.push_back(NULL);
-	
-	如果左右节点 不存在，或者key.size() 数位不够，则需要进行合并操作：
-	将节点x的在父节点对应左/右 节点进行合并，并将key[pos] 下沉到 x中，
-	使x->key.size() >(_order/2)-2;
-
-	parent = x->parent;
-	pos_parent = parent->key.search(x->key[0])
-	if(pos_parent>0)
-	auto l = parent->child[pos_praent];
-	if(pos_parent < pos->child.size()-2)
-	auto r = parent->child[pos_parent+2];
-
-	auto left;
-	auto right;
-	if(l)
-	{
-		letf = l;
-		right = x;
-	}
-	else
-	{
-		pos_parent++;
-		left = x;
-		right = r;
-	}
-		left.key.push_back(parent->key[pos_parent];
-		left.child.push_back(NULL);
-		for(int i = 0;i < right->key.size();i++)
-		{
-			left.key.push_back(right->key[i]);
-			left.child.push_back(NULL);
-		}
-		delete(r);
-		parent->key.erase[pos_parent];
-		praent->child.erase[pos_parent+1];
-
-	x = parent;
-	while(x) solveUnderflow;
+	优先进行
+	a.旋转操作，向其左或者右节点借用一个节点
+	b.合并操作，将父节点的中对应的数据降下来，作为粘合剂。将x与左或右节点粘合
+	  并且检查父节点是否下溢
 */
-
 template<typename T>
 void b_tree<T>::solveUnderflow(BTNodePosi<T> x)
 {
-	//极端情况 x 为 key为0
-	if (x->key.size() >= _order / 2) return;
-	if (x == _root) return;
+	//没有发生下溢
+	if (x->key.size() >= (_order-1) / 2) return;
+	if (x == _root) return;//特殊情况：根节点
+	
 	BTNodePosi<T> parent = x->parent;
 	BTNodePosi<T> l = NULL;
 	BTNodePosi<T> r = NULL;
+	int pos_parent = 0;
+	int pos_x;
 
-	//if (parent == _root) return;
-
-	//    -1 <=  pos_parent < pos->key.size() 
-	int pos_parent;
-	if (!x->key.empty()) 
-		pos_parent = parent->key.search(x->key[0]);
-	else
+	//确认l和r
+	for (pos_x = 0; pos_x < parent->child.size();pos_x++)
 	{
-		for (int i = 0; i < parent->child.size();i++)
+		if (parent->child[pos_x] == x)
 		{
-			if (parent->child[i] == x)
-			{
-				pos_parent = i;
-				break;
-			}
+			if (pos_x - 1 >= 0) l = parent->child[pos_x - 1];
+			if (pos_x + 1 <= parent->child.size() - 1) r = parent->child[pos_x + 1];
+			break;
 		}
 	}
-	if (pos_parent >= 0) l = parent->child[pos_parent]; 
-	if (pos_parent < (parent->child.size() - 2) )
-		r = parent->child[pos_parent + 2];
 
-	//先尝试旋转
-	if (l && l->key.size() > _order / 2)
+	// 先尝试L 节点旋转, #注意要把 l或者r的子节点也接过来
+	if (l && l->key.size() > (_order-1) / 2)
 	{
+		pos_parent = parent->key.search(x->key[0]);
 		x->key.insert(0, parent->key[pos_parent]);
-		x->key.push_back(NULL);
-		parent->key[pos_parent] = l->key.pop();
-		l->key.pop_back();
-		l->child.pop_back();
+		x->child.insert(0, l->child[l->child.size() - 1]);
+
+		if(x->child[0]) x->child[0] = x;
+
+		parent->key[pos_parent] = l->key[l->key.size()-1];
+
+		l->key.erase(l->key.size() - 1);
+		l->child.pop();
 	}
-	else if (r && r->key.size() > _order / 2)
+	else if (r && r->key.size() > (_order - 1) / 2) //然后试试r节点旋转
 	{
-		pos_parent++;
+		pos_parent = parent->key.search(r->key[0]);
 		x->key.push_back(parent->key[pos_parent]);
+		x->child.push_back(r->child[0]);
+		if(r->child[0]) r->child[0]->parent = x;
+
 		parent->key[pos_parent] = r->key[0];
+		
 		r->key.erase(0);
-		r->child.pop_back();
+		r->child.erase(0);
 	}
 
 	//如果旋转不成功，则进行合并
@@ -456,30 +754,33 @@ void b_tree<T>::solveUnderflow(BTNodePosi<T> x)
 		{
 			left = x;
 			right = r;
-			pos_parent++;
 		}
+
+		pos_parent = parent->key.search(right->key[0]);
 		left->key.push_back(parent->key[pos_parent]);
-		left->child.push_back(NULL);
-		for (int i = 0; i < right->key.size(); i++)
+
+		for (int i = 0; i <= right->key.size(); i++)
 		{
-			left->key.push_back(right->key[i]);
-			left->child.push_back(NULL);
+			if(i<right->key.size())
+				left->key.push_back(right->key[i]);
+
+			left->child.push_back(right->child[i]);
+			if (right->child[i]) right->child[i]->parent = left;
 		}
 		parent->key.erase(pos_parent);
 		parent->child.erase(pos_parent + 1);
+
+		//特殊情况 parent为_root,且借了之后 没东西了
 		if (parent->key.empty() && parent == _root)
 		{
 			_root = left;
-			left->parent= NULL;
 			delete(parent);
-			parent = _root;
+			delete(right);
+			parent = right = NULL;
+			left->parent= NULL;
+			return;
 		}
 		delete(right);
-	}
-	x = parent;
-	while (x)
-	{
-		solveUnderflow(x);
-		x = x->parent;
+		solveUnderflow(parent);
 	}
 }

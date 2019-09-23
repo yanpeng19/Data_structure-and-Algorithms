@@ -4,6 +4,7 @@
 #include <iostream>
 #include "my_vector.h"
 
+
 using namespace std;
 
 template<typename T>
@@ -34,17 +35,18 @@ public:
 	BT_Node(BTNodePosi<T> b, int pos)
 	{
 		parent = NULL;
-		for (int i = pos+1; i < b->key.size(); i++)
+		int i=0;
+		for ( i = pos+1; i < b->key.size(); i++)
 		{
 			key.push_back(b->key[i]);
+			child.push_back(b->child[i]);
 		}
-		for (int i = 0; i < key.size() + 1; i++)
-			child.push_back(NULL);
+		child.push_back(b->child[i]);
 	}
 
 //protected:
 	vec<T> key;
 	vec<BTNodePosi<T>> child;
 	BTNodePosi<T> parent;
+	BTNodePosi<T> _hot;
 };
-

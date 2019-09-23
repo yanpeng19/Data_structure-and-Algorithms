@@ -17,7 +17,7 @@ class vec
 	typedef T* iterator;
 	//typename vec<T>::const_iterator iterator;
 
-protected:
+public:
 	vec() :element(NULL), first_free(NULL), cap(NULL) {};
 	vec(const vec&v) :element(NULL), first_free(NULL), cap(NULL)
 	{
@@ -43,16 +43,14 @@ protected:
 	void pop_back();
 	T pop();
 
-public:
+	void insert(unsigned rank, const T& t);
+	void insert(const T& t);
 	bool empty()const { return size() ? 0 : 1; };
-	unsigned size()const { return first_free - element; };
+	int size()const { return first_free - element; };
 	unsigned capcity() { return cap - element; };
 	void check();
 	void free();
 	void relocate();
-
-
-	//dsa相关操作
 	void erase(const int &i); //删除元素操作,使用下标
 	void erase(const iterator &fir, const iterator &last);// 删除元素操作，使用迭代器
 
@@ -62,6 +60,20 @@ public:
 	int bubble(int, int);
 	void merge_sort(int, int);  //归并排序
 	void merge(int, int, int);
+
+	int search(const T& t)
+	{
+		unsigned i;
+		for ( i= 0; i < size(); i++)
+		{
+			/*if (i == 0 && this->operator[](i) > t) return i - 1;
+			if (this->operator[](i) == t) return i;
+			if (i + 1 < size() && this->operator[](i+1)> t) return i;*/
+			if (this->operator[](i) == t) return i;
+			else if (this->operator[](i) > t) return i - 1;
+		}
+		return --i;
+	}
 
 	//查找相关
 	int binary_seach(const T&); //二分查找
@@ -121,6 +133,32 @@ int vec<T>::interpolation_seach(const T& t, int lo, int hi)
 			return mi;
 	}
 	return --lo;
+}
+
+template<typename T>
+void vec<T>::insert(unsigned rank, const T& t)
+{
+	// rank最大不能超过size+1
+	if (empty() && rank == 0 || rank == size())
+	{
+		push_back(t);
+		return;
+	}
+	if (rank > size()) return;
+	if (empty() && rank > 0) return;
+
+	push_back(NULL);
+	for (int i = size()-1; i > rank; i--)
+	{
+		*(element + i) = *(element + i - 1);
+	}
+	this->operator[](rank) = t;
+}
+
+template<typename T>
+void vec<T>::insert(const T& t)
+{
+	*this->push_back(t);
 }
 
 
@@ -367,7 +405,8 @@ void vec<T>::erase(const int &i)
 		*(element + j) = *(element + j + 1);
 		j++;
 	}
-
+	
+	alloc.destroy(first_free);
 }
 
 template<typename T>
@@ -417,6 +456,12 @@ vec<T> vec<T>::operator=(const vec<T>&vc)
 template<typename T>
 T& vec<T>::operator[](unsigned i)
 {
+	if (i >= size())
+	{
+		cout << "rank out" << endl;
+		system("pause");
+		exit(-1);
+	}
 	return *(element + i);
 }
 
