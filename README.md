@@ -5,6 +5,8 @@
 
 课程地址：http://www.xuetangx.com/courses/course-v1:TsinghuaX+30240184X+sp/about
 
+所有代码都是在: WINDOW系统下 VS2017 编写和运行的
+
 # 数据结构
 ## 向量
 - 向量的特点和构成
