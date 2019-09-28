@@ -28,63 +28,156 @@ using namespace std;
 6.其他操作均可继承
 
 实现逻辑：
-1.插入  首先找到插入节点位置 p，然后将节点 x 以红色的形式（即不影响树原先高度的形式）
+1.插入  首先找到插入节点位置 pos，然后将节点 x 以红色的形式（即不影响树原先高度的形式）
         插入到树中；
 		然后进行双红检测，查看节点x和其父节点是否都是红色，从而违反原则3；
 		如果是双红情况，则进行 DoubleRed 处理
 
-2.删除  首先判断节点是否存在，如果不存在则返回。如果存在，则将节点 x 删除后
-		进行情况略微复杂的双黑判断流程
+2.删除  首先判断节点是否存在，如果不存在则返回。如果存在，则进入双黑判断调整流程
+        调整后正常进行删除，并让 r 继承 p 的颜色即可。
+		
 
 3.双红问题处理函数DoubleRed()  
 	双红问题的实质：双红问题是由于其父亲节点是红色，导致违反原则3；
 	                那么需要通过调整颜色和结构，该分支的黑高度不变
 
-	解决问题的背景：如果产生了双红问题，那么说明父节点 p 为红色，同样也说明 祖父节点 p 一定存在且为黑色；
-	                所以解决问题的背景，是 x,f，g 都存在的情况下进行的；
-	解决问题的思路：(1).首先寻找到父节点f，祖父节点g以及组父节点的另外一个子节点 u（下面称为叔节点，即父亲的兄弟）  
+	解决问题的背景：如果产生了双红问题，那么说明删除节 f 为红色，同样也说明 祖父节点 g 一定存在且为黑色；
+	                所以解决问题的背景，是 x ,f，g 都存在的情况下进行的；
+
+	解决问题的思路：(1).首先寻找到父节点f，祖父节点g以及组父节点的另外一个子节点 s（下面称为叔节点，即父亲的兄弟）  
 	                (2).祖节点g是关注的节点，我们的所有调整，目的都是：让节点g下面的所有子节点黑高度不变；
 					(3.1).简单情况，x:红色  f:红色 g:黑色 这三个已经确定；
-					      如果节点 u 是红色的，那么我们可以通过将u和f同时染黑，
+					      如果节点 s 是红色的，那么我们可以通过将s和f同时染黑，
 						  然后将 g 染为红色，从而使得g节点下面的所有节点黑高度不变；
 						  并且想上一层，判断 gg = g->parent; 和 g 是否存在双红问题；
 						  #特殊情况，如果g为根节点，那么可以直接置为黑色，并且返回
 
 					(3.2).稍微复杂一点的情况： x:红色 f:红色 g:黑色 这三个已确定
-					      且节点 u 为黑色，此时如果通过 f/x 染黑，则会使得f分支高度增加1
-						  并且没有办法弥补 u 分支的高度；
+					      且节点 s 为黑色，此时如果通过 f/x 染黑，则会使得f分支高度增加1
+						  并且没有办法弥补 s 分支的高度；
 						  所以，需要对 g，f, x,三个节点进行重构，使用类似AVL树的重构方法，
 						  将大小居中的节点提升到上方 变成黑色，同时将 g 和 f 节点都变为红；
 						  （因为f节点原来就是红色的，所以 f 的另外一个分支必定是黑色，可以
-						    直接接入红色的父节点，而无需判断；同理 u 也是黑色的无需判断双红）
+						    直接接入红色的父节点，而无需判断；同理 s 也是黑色的无需判断双红）
 						  这样之后，f分支的高度就实际性又降低了一个单位，黑高度没有变化；
 						  （解决的实质：将某个红节点插入到f分支，且因为g层级的节点为黑色无变化
 						                从而使得原g节点以下的部分高度不变）
 						  并直接返回；
 
 4.双黑问题处理判断函数 DoubleBlack()
-	双黑问题的实质：双黑问题的出现，是因为某个分支的删除，导致该分支的高度减少1；
-	                所以只能通过各种方式的重构 p ,g 使得 g 下的各个分支高度不变；
-					着眼和调整的节点是 g；
+	双黑问题的实质：双黑问题的出现，是因为删除节点 pos 的后继 r = succ(pos)， 以及 r 的父亲 p
+	                都是黑色，从而导致删除后的 r 分支实际高度 -1；
 
-	双黑问题背景：  如果出现了双黑问题，那么 f：黑色，g: 红/黑，gg：红/黑,u:红/黑
+					（这里复习一下节点 r 的概念： 
+					  1.当 pos 有两个节点的时候，r 不一定紧邻着 pos
+					  2.当 pos 只有一个分支的时候，且pos->Child有两个子节点时，r 在 pos 右侧分支最左下
+					  3.当 pos 紧邻r 且r 只有一个子节点的时候，那么 r 的高度变化，只会影响 r 子节点一路的节点
 
-	双黑问题思路：  双黑问题的本质是通过调整节点，使得 f 分支的黑高度 + 1；
-	                所以根据 叔 节点的不同情况，来进行调整，使得 u分支 高度不变的同时；
-					f 分支高度 + 1；
+					  所以删除操作实际上是让 r 的高度降低了 1 个单位，只要找到r，并且使r得黑高度+1；
+					  即可随后执行正常得高度操作；
 
-					(1.0).简单情况：如果 u 为黑色，且存在红色的孩子 u_child;
-					      那么将 将 g,u,u_child 三者 进行旋转重构；
-						  a.将节点的大小关系 x>y>z 中的 y 替换到 g 的位置，同时颜色不变；
-						  b.将节点 x 的颜色 染为 黑色，将节点 u_child 也染为黑色；
-						 (情况分析：此时 新的g节点颜色没有变化，u分支 减去一个黑，得到一个黑
-						  高度没有变化，f分支被接到了新的黑色节点下，从而使得高度+1，从而形成
-						  合法的红黑树）
-						 (该重构方式，是否合法分析：
-						  T0<T1<T2<T3,这四个被重构的分支，因为都会被接到黑色的节点上，所以
-						  他们是红是黑，都不会重现双红的不合法情况，可以直接返回）
+	                所以调整的实质，是通过各种方式的染色、重构和调整 找到节点 r 得父亲 p（_hot)
+					r 得兄弟节点 s ，来在 给 r 添加子节点的情况下（添加了之后 pos->succ() 就会变化）
+					在不影响 pos 的拓扑结构的情况下（如果 pos 调整了拓扑结构，那么pos->succ() 也会发生变化）
 
+					所以调整： 保证调整之后得 r 依然使 pos 得后继节点，且 r 的高度+1
+					而着眼和调整的节点是：  r, p = r->parent ，s;
 
+	双黑问题背景：  如果出现了双黑问题，那么 r：黑色，p：黑, s:红/黑；
+	                非双黑问题： r/p 中有一个红
+
+	双黑问题思路：  双黑问题的本质是通过调整节点，使得 r 分支的黑高度 + 1；
+	                所以根据 s 节点的不同情况，来进行调整，使得 s 分支高度不变的同时；
+					r 分支高度 + 1；
+
+					(*.*).极限情况 pos为叶子节点，那么无需调整直接删除即可
+
+					(0.0).非双黑情况，如果 r 为红色，无需任何操作,将 r 的颜色替换成 pos 的颜色
+
+					(1.0).简单情况：r:黑，p:黑，如果 s 为黑色，且存在红色的孩子 s_child;
+					      那么将 将 p,s,s_child 三者 进行旋转重构；
+						  a.将 三个节点中 数值为中间大小的节点（只可能是 s 或者 s_child)
+						    替换到 p 的位置，并继承p的颜色；
+						  b.再将 另外一个节点 和 p 的颜色染为黑色,接入到 new_p 下方；
+						    然后，接入 T0,T1,T2,T3（r 分支只可能是T0)
+
+						  情况分析：调整高度是否合法？						  
+						  此时 新的 new_p 节点颜色保持，s 分支 减去一个p：黑，
+						  也得到一个 new_p :黑；
+						  因此高度没有变化，
+						  r 节点因为上面会都接入一个 黑色的 p 节点，高度会+1；
+						  而非 r 的 另外三个分支（T0,T1,T2,T3 非r的另外三个分支)，
+						  因为之前是接入在 黑s 或者 红 s_child+黑s中，黑高度是+1；
+						  在调整后其依然会接入到 黑色的节点p或者 s_min 中，黑高度依然是+1不变）
+						 
+						  问题：调整之后 r 依然是 pos->succ() 吗？
+						  回答：分两种情况讨论，p = pos的时候，以及p!=pos；
+						  1.p = pos 的时候，那么 r 只会在 pos 的右侧，且只有一个孩子
+						    因为 s 分支的所有数值都 都小于 pos ；r > pos 
+							所以在上述调整中 r 只能是最大的 T3 依然接入到 p 下方，
+							又因为 r 下的分支是没有变化的，依然是只有一个右孩子；
+							所以 r = p->succ() 依然是成立的；
+
+						  2.当 p 不等于 pos的时候，r 只会是 pos 的左子；那么调整后
+						    只会是作为 T0 接入到 P 的下方，同时，P也只会是 new_p的
+							左子，所以 r 依然是 pos->succ();
+						    
+							  
+					(2.0).一般情况1：如果 s 为黑色，且没有红色的孩子；但节点 g 是红色的 
+					      那么将 s 染红，再把 g 染黑；返回即可；
+						  （情况分析：此时 s 分支的高度： u染红-1，g染黑+1  高度整体不变
+						              此时 r 分支的高度： g染黑，高度+1，完成了调整）
+
+				    (3.0).一般情况2：如果 s 为黑色，且没有红色孩子；且节点 g 黑色的
+					      那么此时 将 s 染红，从而使得 s 分支 和 r 分支高度都整体下降了
+						  1个单位；
+						  然后再将p作为新的r向上继续传导和调整； (最多可能会调整 h 次结构）
+
+				    (4.0).一般情况3:节点 s 为红色，那么 g 和 r 和 s 的子节点一定都为黑色
+					
+						 a. 那么将 节点 s 染黑,并且提升到 p 得上方，并将 p 染接入 s 得下方。
+						    然后将 s 的一个 p 侧的子分支  s_p_child = (s.data > p.data) ? s->lChild : s->rChild;
+						    将 s_p_child 染红 接入到 p 得下方；
+						  
+						    情况分析：s得两个分支，s_no_p_child 一直紧跟着 s, 失去了 p的黑高度，但是得到了
+						              s染黑后的高度，所以高度不变；
+									  同理 r分支 高度也没有变化
+									  s_p_child 本身从黑色变成红色，但是因为接入了 p 所以高度也没有变化；
+									  p 会被删除，无需关注他；
+					     b.再执行一次调整判断，此时 调整的情景 已经变成了情况 2 ： s 为黑 且 g 为红；
+						   进行相应的调整即可
+
+						   问题分析：此次调整是否会影响拓扑结构？
+						             r依然是 pos->succ() 吗？
+						   回答：是的。还是分为 p = pos 以及  p!=pos 的情况讨论
+						   1.p = pos 的时候：
+						     那么 r 作为一条单独链，接入p的右侧；
+							 调整后，pos接入s的右侧,pos下的结构未收到影响，所以 r 依然是 pos->succ()
+						   2.p != pos 的时候
+						     因为 r < p 是一定的，那么 s > p 也是一定的，
+							 所以 p 会接入到 s 的左侧，r 依然是 p 下最 左路节点；
+							 r 依然是 p->succ();
+
+							
+					#讨论： 节点 s 不存在的情况
+					 首先节点 s 是有可能不存在的，我们也很容易构造出这种形式的红黑树；
+					 在这个基础上，我们再区分两种情况：
+					 1.r 和 pos 相连的时候，那么就继续向上归宿，pos = r，直到能找到 s 节点的时候；
+					   再进行调整，把 pos-r 这边的分支高度增加1
+					 2.r 和 pos 不相连接的时候，如果 s 不存在，那么就继续 用 p = r 向上归宿，直到能找到
+					   s 或者到达根节点的时候。再进行调整
+					  
+					 总结：处理方法都是 向上寻找 有s的分支，来进行调整，使得 r 分支的高度+1；
+					       如果以上两种到达根节点依然没有s 的话，说明是一条单链，、
+						   可以直接进行删除 pos ，不会影响其他节点高度
+					 分析：这种方式会影响pos和r的关系吗？ 
+					       r 是否依然是 pos->succ()?
+				     回答：依然是的，上述所有的调整方式，都不会影响 r 分支 和 p 分支的关系；
+					       他们的关系是不会受到调整的变化的；
+						   情况1.0已经分析过；
+						   情况2.0没有调整拓扑结构
+						   情况3.0没有调整拓扑结构
+						   情况4.0也分析过，不会影响 r = p->succ();
 
 */
 
@@ -216,19 +309,8 @@ bool br_tree<T>::br_tree_judge( void(*f)(bst_BinNodePosi<T>, vector<bst_BinNodeP
 /*
 删除逻辑：
 1.进行seach ， pos=search(t);
-2.pos为真
-  r=succ(pos),用r和pos 进行替换,并删除pos内容；
-  s = (p==_hot->lChild)? _hot->rChild:_hot->lChild;
-  p_color = p.c;
-  r_color = r ? r->c RED;
-  s_color = s.c;
-
-3.根据pos,r,s颜色进行识别，进行相应的调整
-  如果pos或者r 其中一个为红色,if(r) r->c = RED 即可；
-  如果双黑色，则进行双黑处理流程，调整单元格与颜色
-
-4.执行实际删除操作
-
+2.pos为真,直接进入 doubleBlack 调整流程
+3.执行实际删除操作
 */
 template<typename T>
 bool br_tree<T>::erase(const T& t)
@@ -236,33 +318,184 @@ bool br_tree<T>::erase(const T& t)
 	bst_BinNodePosi<T> pos = bst_tree<T>::search(t);
 	if (!pos) return false; //未找到数据删除失败
 
-	bst_BinNodePosi<T> r = pos->succ(); //replacement 替代者
-	bst_BinNodePosi<T> p = pos->parent;
-	color pos_color, r_color;
-	pos_color = pos->c;
-	r_color = r ? r->c : BLACK;
-	
-	if (pos_color == RED || r_color == RED) //简单情况 pos 和 r 其中一个为红色，删除后将后继（如果）置为红色即可，即删除侧高度不变
-	{
-		bst_tree<T>::erase(t);
-		if(r) r->c = RED;
-	}
-	else if (bst_tree<T>::size <= 3) //双黑问题，且小于等于3
-	{
-		bst_tree<T>::erase(t);
-	}
-	else
-	{
-		DoubleBlack(pos);
-		bst_tree<T>::erase(t);
-	}
+	//bst_BinNodePosi<T> r = pos->succ(); //replacement 替代者
+	//bst_BinNodePosi<T> p = pos->parent;
+	//color pos_color, r_color;
+	//pos_color = pos->c;
+	//r_color = r ? r->c : BLACK;
+	//
+	//if (pos_color == RED || r_color == RED) //简单情况 pos 和 r 其中一个为红色，删除后将后继（如果）置为红色即可，即删除侧高度不变
+	//{
+	//	bst_tree<T>::erase(t);
+	//	if(r) r->c = RED;
+	//}
+	//else if (bst_tree<T>::size <= 3) //双黑问题，且小于等于3
+	//{
+	//	bst_tree<T>::erase(t);
+	//}
+	//else
+	//{
+	//	DoubleBlack(pos);
+	//	bst_tree<T>::erase(t);
+	//}
 
+	DoubleBlack(pos);
+	bst_tree<T>::erase(t);
 	return true;
 }
 
 template<typename T>
 void br_tree<T>::DoubleBlack(bst_BinNodePosi<T> pos)
 {
+	bst_BinNodePosi<T> & _root = bst_tree<T>::_root;
+
+	//极限情况：pos 为叶节点，无论红黑，都无需调整
+	if (!pos->lChild&&pos->rChild) return;
+	//根节点情况，直接正常删除即可
+	if (pos == _root) return;
+
+	bst_BinNodePosi<T> r = pos->succ();
+	bst_BinNodePosi<T> p = r->parent;
+	bst_BinNodePosi<T> s = (r == p->lChild) ? p->rChild : p->lChild;
+
+	//简单情况0：r为红
+	//如果r 是红色的，那么他的挪走不会后继节点的高度，直接把他的颜色替换成 pos 的
+	//颜色，使得他顶替pos后，树的高度不受影响即可；
+	if (r->c == RED)
+	{
+		r->c = pos->c;
+		return;
+	}
+
+	//s不存在的情况，继续向上归宿
+	if (!s)
+	{
+		//继续向上归宿调整,如果遇到根节点，什么都不做，如果不是根，那么会继续调整
+    	DoubleBlack(p);
+		return;
+	}
+
+	if (s->c == BLACK)
+	{
+		color s_l_color = s->lChild ? s->lChild->c : BLACK;
+		color s_r_color = s->rChild ? s->rChild->c : BLACK;
+		//情况1.0 s 有红色孩子，对p颜色无要求
+		if (s_l_color == RED || s_r_color == RED)
+		{
+			color p_color = p->c;
+			bst_BinNodePosi<T> T0, T1, T2, T3;
+			bst_BinNodePosi<T> t = (s_l_color == RED) ? s->lChild : s->rChild; //t是 s 的红子节点
+
+			//类似AVL树调整的4种情况不同情况
+			if (s == p->lChild)
+			{
+				if (t == s->lChild)
+				{
+					T0 = t->lChild;
+					T1 = t->rChild;
+					T2 = s->rChild;
+					T3 = p->rChild;
+					link34_erase(t, s, p, p->parent, T0, T1, T2, T3);
+					s->c = p_color;
+					t->c = p->c = BLACK;
+				}
+				else
+				{
+
+					T0 = s->lChild;
+					T1 = t->lChild;
+					T2 = t->rChild;
+					T3 = p->rChild;
+					link34_erase(s, t, p, p->parent, T0, T1, T2, T3);
+					t->c = p_color;
+					s->c = p->c = BLACK;
+				}
+			}
+			else
+			{
+				if (t == s->rChild)
+				{
+					T0 = p->lChild;
+					T1 = s->lChild;
+					T2 = t->lChild;
+					T3 = t->rChild;
+					link34_erase(p, s, t, p->parent, T0, T1, T2, T3);
+					s->c = p_color;
+					t->c = p->c = BLACK;
+				}
+				else
+				{
+					T0 = p->lChild;
+					T1 = t->lChild;
+					T2 = t->rChild;
+					T3 = s->rChild;
+					link34_erase(p, t, s, p->parent, T0, T1, T2, T3);
+					t->c = p_color;
+					s->c = p->c = BLACK;
+				}
+			}		
+			return;
+		}
+		else if (p->c == RED) //情况2.0 p的颜色要求是红色，简单调整即可
+		{
+			s->c = RED;
+			p->c = BLACK;
+			return;
+		}
+		else //情况3.0 全体黑色， s染红，向上寻找解决途径
+		{
+			s->c = RED;
+			DoubleBlack(p);
+			return;
+		}
+	}
+	else//情况4.0 s 颜色为红色，把 p 接到 s 下方，然后对节点 r 进行下一次调整
+	{
+		bst_BinNodePosi<T> g = (p) ? p->parent : NULL;
+
+		// p = pos 的时候，s 在 p 的左边；否则 s 在 pos 的右边
+		if (s == p->lChild)
+		{
+			bst_BinNodePosi<T> temp = s->rChild;
+
+			s->rChild = p;
+			s->parent = g ? g : NULL;
+			s->c = BLACK;
+
+			p->lChild = temp;
+			p->parent = s;
+			p->c = RED;
+
+			if (temp) temp->parent = p;
+
+			if (bst_tree<T>::_root == p)
+				bst_tree<T>::_root = s;
+		}
+		else // p != pos 的时候，s 在 p 的右边
+		{
+			bst_BinNodePosi<T> temp = s->lChild;
+
+			s->lChild = p;
+			s->parent = g ? g : NULL;
+			s->c = BLACK;
+
+			p->rChild = temp;
+			p->parent = s;
+			p->c = RED;
+
+			if (temp) temp->parent = p;
+
+			if (bst_tree<T>::_root == p) bst_tree<T>::_root = s;
+		}
+		if (g)
+		{
+			if (p == g->lChild)
+				g->lChild = s;
+			else g->rChild = s;
+		}
+	}
+
+	/* 旧版废弃代码
 	T erase_t = pos->get_value();
 	auto temp = pos;
 	//特殊情况，删除节点是根节点 那么pos=pos->succ();
@@ -271,15 +504,21 @@ void br_tree<T>::DoubleBlack(bst_BinNodePosi<T> pos)
 
 	//bst_BinNodePosi<T> r = pos->succ();
 	bst_BinNodePosi<T> p = pos->parent;
+	bst_BinNodePosi<T> g = NULL;
 	bst_BinNodePosi<T> s;
 	if (!p) s = NULL;
-	else s = (pos == p->lChild) ? p->rChild : p->lChild;
+	else
+	{	
+		g = p->parent;
+		s = (p == g->lChild) ? g->rChild : g->lChild;
+	}
 	//特殊情况s如果不存在，说明流程进入到了 t->succ() 流程
 	//那么
 	if (!s)
 	{
 		if (p->c == RED)
 		{
+
 			p->c = BLACK;
 			pos -> c = RED;
 		}
@@ -405,6 +644,7 @@ void br_tree<T>::DoubleBlack(bst_BinNodePosi<T> pos)
 	{
 		bst_BinNodePosi<T> T0, T1, T2;
 		bst_BinNodePosi<T> g = (p) ? p->parent : NULL;
+
 		if (s == p->lChild)
 		{
 			T0 = s->lChild;
@@ -448,6 +688,7 @@ void br_tree<T>::DoubleBlack(bst_BinNodePosi<T> pos)
 		}
 		bst_tree<T>::_size++;
 	}
+	*/
 }
 
 
