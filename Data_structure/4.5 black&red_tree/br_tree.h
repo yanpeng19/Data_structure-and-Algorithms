@@ -199,8 +199,8 @@ public:
 
 	void DoubleRed_R1(bst_BinNodePosi<T> x);  // 叔叔节点u为黑色处理方案
 	void DoubleRed_R2(bst_BinNodePosi<T> x); // 叔叔节点u为红色处理方案
-	void link34_insert(bst_BinNodePosi<T>g, bst_BinNodePosi<T>p, bst_BinNodePosi<T>v, bst_BinNodePosi<T> gg,bst_BinNodePosi<T>T0,
-		bst_BinNodePosi<T>T1, bst_BinNodePosi<T>T2, bst_BinNodePosi<T>T3);
+	void link34_insert(bst_BinNodePosi<T>g, bst_BinNodePosi<T>p, bst_BinNodePosi<T>v,
+		bst_BinNodePosi<T>T0,bst_BinNodePosi<T>T1, bst_BinNodePosi<T>T2, bst_BinNodePosi<T>T3);
 	void link34_erase(bst_BinNodePosi<T>g, bst_BinNodePosi<T>p, bst_BinNodePosi<T>v, bst_BinNodePosi<T> gg, bst_BinNodePosi<T>T0,
 		bst_BinNodePosi<T>T1, bst_BinNodePosi<T>T2, bst_BinNodePosi<T>T3);
 
@@ -871,6 +871,8 @@ void br_tree<T>::DoubleRed_R1(bst_BinNodePosi<T> x)
 	bst_BinNodePosi<T> p = x->parent;
 	bst_BinNodePosi<T> g = p->parent;
 	bst_BinNodePosi<T> T0, T1, T2, T3;
+	bst_BinNodePosi<T> gg = g->parent;
+	bst_BinNodePosi<T> new_parent;
 
 	if (p == g->lChild)
 	{
@@ -884,7 +886,8 @@ void br_tree<T>::DoubleRed_R1(bst_BinNodePosi<T> x)
 			T1 = x->rChild;
 			T2 = p->rChild;
 			T3 = g->rChild;
-			link34_insert(x, p, g,g->parent, T0, T1, T2, T3);
+			link34_insert(x, p, g, T0, T1, T2, T3);
+			new_parent = p;
 		}
 		else
 		{
@@ -892,7 +895,8 @@ void br_tree<T>::DoubleRed_R1(bst_BinNodePosi<T> x)
 			T1 = x->lChild;
 			T2 = x->rChild;
 			T3 = g->rChild;
-			link34_insert(p, x, g, g->parent, T0, T1, T2, T3);
+			link34_insert(p, x, g, T0, T1, T2, T3);
+			new_parent = x;
 		}
 	}
 	else
@@ -903,7 +907,8 @@ void br_tree<T>::DoubleRed_R1(bst_BinNodePosi<T> x)
 			T1 = p->lChild;
 			T2 = x->lChild;
 			T3 = x->rChild;
-			link34_insert(g, p, x, g->parent, T0, T1, T2, T3);
+			link34_insert(g, p, x, T0, T1, T2, T3);
+			new_parent = p;
 		}
 		else
 		{
@@ -911,10 +916,21 @@ void br_tree<T>::DoubleRed_R1(bst_BinNodePosi<T> x)
 			T1 = x->lChild;
 			T2 = x->rChild;
 			T3 = p->rChild;
-			link34_insert(g, x, p, g->parent, T0, T1, T2, T3);
+			link34_insert(g, x, p, T0, T1, T2, T3);
+			new_parent = x;
 		}
 	}
-	
+	if (g == bst_tree<T>::_root)
+	{
+		bst_tree<T>::_root = new_parent;
+		new_parent->parent = NULL;
+	}
+	if (gg)
+	{
+		if (g == gg->lChild) gg->lChild = new_parent;
+		else gg->rChild = new_parent;
+		new_parent->parent = gg;
+	}
 	return;
 }
 
@@ -939,21 +955,11 @@ void br_tree<T>::DoubleRed_R2(bst_BinNodePosi<T> x)
 
 
 template<typename T>
-void br_tree<T>::link34_insert(bst_BinNodePosi<T> lower_node, bst_BinNodePosi<T> new_parent, bst_BinNodePosi<T> higher_node, bst_BinNodePosi<T>gg,
+void br_tree<T>::link34_insert(bst_BinNodePosi<T> lower_node, bst_BinNodePosi<T> new_parent, bst_BinNodePosi<T> higher_node,
 	bst_BinNodePosi<T>T0, bst_BinNodePosi<T>T1, bst_BinNodePosi<T>T2, bst_BinNodePosi<T>T3)
 {
-	//极限情况 g 为_root
-	if (gg)
-	{
-		if (higher_node == gg->lChild || lower_node == gg->lChild)
-			gg->lChild = new_parent;
-		else gg->rChild = new_parent;
-	}
-	else bst_tree<T>::_root = new_parent;
-
 	new_parent->lChild = lower_node;
 	new_parent->rChild = higher_node;
-	new_parent->parent = gg;
 	new_parent->c = BLACK;
 
 	lower_node->lChild = T0;
@@ -966,10 +972,10 @@ void br_tree<T>::link34_insert(bst_BinNodePosi<T> lower_node, bst_BinNodePosi<T>
 	higher_node->parent = new_parent;
 	higher_node->c = RED;
 
-	if (T0) T0->parent = higher_node;
-	if (T1) T1->parent = higher_node;
-	if (T2) T2->parent = lower_node;
-	if (T3) T3->parent = lower_node;
+	if (T0) T0->parent = lower_node;
+	if (T1) T1->parent = lower_node;
+	if (T2) T2->parent = higher_node;
+	if (T3) T3->parent = higher_node;
 }
 
 template<typename T>
