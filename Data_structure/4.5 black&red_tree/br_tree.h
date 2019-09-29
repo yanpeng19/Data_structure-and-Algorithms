@@ -1,6 +1,9 @@
 #pragma once
 
 #include "bst_tree.h"
+#include <queue>
+#include <math.h>
+#include <sstream>
 
 using namespace std;
 
@@ -208,6 +211,97 @@ public:
 		br_tree_judge(judge_node);
 	}
 	color get_root_c() { return bst_tree<T>::_root->c; };
+	void out()
+	{
+		int _size = bst_tree<T>::_size;
+		int high = 0;
+		if (!_size||!bst_tree<T>::_root) return;
+		
+		queue<bst_BinNodePosi<T>> q1;
+		q1.push(bst_tree<T>::_root);
+		while (!q1.empty()) //没有给节点设置高度信息，只有受累遍历一遍获取高度了
+		{
+			high++;
+			queue<bst_BinNodePosi<T>> q_line;
+			while (!q1.empty())
+			{
+				auto temp = q1.front();
+				q1.pop();
+				q_line.push(temp);
+			}
+			while (!q_line.empty())
+			{
+				auto temp = q_line.front();
+				q_line.pop();
+				if (temp->lChild) q1.push(temp->lChild);
+				if (temp->rChild) q1.push(temp->rChild);
+			}
+		}
+
+		//空白符，控制每行宽度；每个单元格  |R：1| 8个字符 再加上 5个字符的留白
+		int t = 1;
+		high--;
+
+		while (high)
+		{
+			t = t * 2;
+			high--;
+		}
+
+		vector<bst_BinNodePosi<T>> vs(t * 2 + 1, NULL);//存储每个节点
+
+		int rank = 0;
+		vs[0] = bst_tree<T>::_root;
+
+		while (rank < t * 2) //遍历节点,假设其是一个完全二叉树，那么总数量为 最底层节点数*2
+		{
+			if (vs[rank])
+			{
+				if (vs[rank]->lChild)
+					vs[rank * 2 + 1] = vs[rank]->lChild;
+				if (vs[rank]->rChild)
+					vs[rank * 2 + 2] = vs[rank]->rChild;
+			}
+			rank++;
+		}
+		//所有节点已经存入
+
+		//按行输出
+		rank = 0;
+		int sum = 0;
+		int line = 0; //间隔
+		for (int i = 1; i <= t; i =  i * 2) //每行 i 个单元格,t最底层行单元格数量
+		{
+			line = (t - i) * 8 / i / 2;  // 每行还有 （t-i）的空间可以进行分配，
+			sum += i;  //单元格总个数，用来控制 rank
+			
+			while (rank < sum) //输出每行的内容
+			{
+				if (vs[rank]) //输出每个单元格
+				{
+					cout << string(line, ' ');
+					stringstream ss;
+					ss << " |";
+					vs[rank]->c == RED ? ss << "R:" : ss << "B:";
+					ss << vs[rank]->get_value();
+					if (vs[rank]->get_value() < 10)
+						cout << " ";
+					ss << "| ";
+					cout << ss.str();
+					cout << string(line, ' ');
+				}
+				else
+				{
+					cout << string(line, ' ');
+					cout << string(8,' ') ;
+					cout << string(line, ' ');
+				}
+				rank++;
+			}
+			cout << endl;
+		}
+		cout << endl;
+	}
 };
 
 /*
@@ -350,11 +444,16 @@ void br_tree<T>::DoubleBlack(bst_BinNodePosi<T> pos)
 	bst_BinNodePosi<T> & _root = bst_tree<T>::_root;
 
 	//极限情况：pos 为叶节点，无论红黑，都无需调整
-	if (!pos->lChild&&pos->rChild) return;
+	if (!pos->lChild&&!pos->rChild) return;
 	//根节点情况，直接正常删除即可
 	if (pos == _root) return;
 
 	bst_BinNodePosi<T> r = pos->succ();
+	// pos 不存在r的情况，那么pos，只有左孩，没有右边孩子；给左边分支高度+1
+	if (r == NULL)
+	{
+		r = pos->lChild;
+	}
 	bst_BinNodePosi<T> p = r->parent;
 	bst_BinNodePosi<T> s = (r == p->lChild) ? p->rChild : p->lChild;
 
@@ -846,23 +945,26 @@ void br_tree<T>::link34_insert(bst_BinNodePosi<T> lower_node, bst_BinNodePosi<T>
 	//极限情况 g 为_root
 	if (gg)
 	{
-		if (higher_node == gg->lChild) gg->lChild = new_parent;
+		if (higher_node == gg->lChild || lower_node == gg->lChild)
+			gg->lChild = new_parent;
 		else gg->rChild = new_parent;
 	}
 	else bst_tree<T>::_root = new_parent;
 
-	new_parent->lChild = higher_node;
-	new_parent->rChild = lower_node;
+	new_parent->lChild = lower_node;
+	new_parent->rChild = higher_node;
 	new_parent->parent = gg;
 	new_parent->c = BLACK;
-	higher_node->lChild = T0;
-	higher_node->rChild = T1;
-	higher_node->parent = higher_node;
-	higher_node->c = RED;
-	lower_node->lChild = T2;
-	lower_node->rChild = T3;
-	lower_node->parent = higher_node;
+
+	lower_node->lChild = T0;
+	lower_node->rChild = T1;
+	lower_node->parent = new_parent;
 	lower_node->c = RED;
+
+	higher_node->lChild = T2;
+	higher_node->rChild = T3;
+	higher_node->parent = new_parent;
+	higher_node->c = RED;
 
 	if (T0) T0->parent = higher_node;
 	if (T1) T1->parent = higher_node;
