@@ -435,6 +435,7 @@ bool br_tree<T>::erase(const T& t)
 
 	DoubleBlack(pos);
 	bst_tree<T>::erase(t);
+	if (bst_tree<T>::_root && bst_tree<T>::_root->c == RED) bst_tree<T>::_root->c = BLACK;
 	return true;
 }
 
@@ -446,13 +447,22 @@ void br_tree<T>::DoubleBlack(bst_BinNodePosi<T> pos)
 	//极限情况：pos 为叶节点，无论红黑，都无需调整
 	if (!pos->lChild&&!pos->rChild) return;
 	//根节点情况，直接正常删除即可
-	if (pos == _root) return;
+	if (pos == _root && bst_tree<T>::_size==1) return;
+
 
 	bst_BinNodePosi<T> r = pos->succ();
-	// pos 不存在r的情况，那么pos，只有左孩，没有右边孩子；给左边分支高度+1
-	if (r == NULL)
+	// pos 不存在r的情况，那么pos，只有左孩，没有右边孩子；左边succ = pos->rChild;
+	// r会直接顶替pos ,如果二者有红色，那么直接染成黑色即可。
+	// 如果二者都是黑色，且单链，那么需要将pos->parent 作为pos 向上调整，给pos分支一个额外高度
 	{
 		r = pos->lChild;
+		if (r->c == RED)
+		{
+			r->c = BLACK;
+			return;
+		}
+		r = pos->parent;
+		return;
 	}
 	bst_BinNodePosi<T> p = r->parent;
 	bst_BinNodePosi<T> s = (r == p->lChild) ? p->rChild : p->lChild;

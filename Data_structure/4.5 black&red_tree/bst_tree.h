@@ -79,7 +79,7 @@ public:
 
 	
 	bst_BinNodePosi<T> succ();
-	T& get_value() { return value; };
+	T& get_value() { return data; };
 	bool operator=(bst_BinNodePosi<T> b)
 	{
 		data = b->data;
@@ -296,7 +296,6 @@ bst_BinNodePosi<T> bst_BinNode<T>::succ()
 {
 	bst_BinNodePosi<T> posi;
 	if (rChild) posi = rChild;
-	else if (lChild) posi = lChild;
 	else return NULL;
 
 	while (posi->lChild)
