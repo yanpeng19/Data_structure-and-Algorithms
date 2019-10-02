@@ -129,60 +129,70 @@ S：ABCDABACD|E          8                -1
 
 for(int i = 1;i<s.size()-1;i++)   //这一步复杂度 O(N)
 {
-   int j = i-1;
-   if(j==-1) //复1 情况
+   for(j = i-1;j>=0;j--)  //从i-1 往前遍历        // O(N)
    {
-       next[i] == -1;
-	   continue;
-   }
-   for( j = i-1;j>=0;j--)  // 这一步复杂度O（N）
-   {
-       if(s[i]==s[j])
-       {
-           same_i = i;
-	       same_j = j;
-	       //循环向前比较
-	       while(s[same_i]==s[same_j]&&same_j>=0) // 这一步大多数情况下，只有1-2次对比，通常达不到O（N），可以视为O（1）
-	       {
-	           same_i--;
-		       same_j--;
-	       }
-	       if(same_j==-1) next[i] = j; // 如果到了-1说明 相同性已经到了s[0];
-		}
+       if(s[j]==s[i-1])
+	   {
+	       same_i = i-1;
+		   sanm_j = j;
+		   while(s[same_i]==s[same[j]]) //找到最前的相同字符，也就是两个串的相同性到哪儿   可以视为O（1）
+		   {
+		       same_i--;
+			   same_j--;
+			   if(same_j==-1) break;
+		   }
+		   if(same_j==-1)  //说明找到了
+		   {
+		      next.push_back(j+1);
+			  break;
+		   }
+	   }
+	   if(j==0) next.push_back(-1); 到这里都没找到，说明还是没有了相同性的。因为 j 所有可能的合法的位置都遍历光了；
    }
 }
 
 上面这段代码，逻辑没有问题，比较清晰，但是时间复杂度到达了O(N^N）；我们可以观察 j 的缩进方式，来进行对他的优化：
-for(int i = 1;i<s.size()-1;i++)                  
+
+for(int i = 1;i<s.size()-1;i++)   //这一步复杂度 O(N)
 {
-      int j = i-1;
-     if(j==-1) //复1 情况
-     {
-       next[i] == -1;
-       continue;
-     }
-     for( j = i-1;j>=0;j=next[j])    //for( j = i-1;j>=0;j--)## 这里是修改的部分1 ##
-     {
-         if(s[i]==s[j])
-         {
-            same_i = i;
-            same_j = j;
-            //循环向前比较
-            while(s[same_i]==s[same_j]&&same_j>=0)
-            {
-               same_i--;
-               same_j--;
-            }
-            if(same_j==-1) next[i] = j; // 如果到了-1说明 相同性已经到了s[0];
-         }
-     }
+   j = i-1; //如果 next[i] = z; 那么 s[i-1] == s[z-1] ，我们可以先找到 next[i-1]的数值，然后先判断他的右边是否和 s[i]相同
+            //再判断 他的左边是否相同，相通性可以到达根节点吗？
+   for(j = next[j];j>=-1;j=next[j])  //j>=-1的原因，因为需要先比较 j+1 ,j = -1的时候，j+1=0,也有可能和s[i] 数值相同   调整后O（1）
+   {
+       if(s[j+1]==s[i])
+	   {
+	       same_i = i-1;
+		   same_j = j;
+		   while(s[same_i]==s[same_j]) //找到最前的相同字符，也就是两个串的相同性到哪儿   可以视为O（1）
+		   {
+		       same_i--;
+			   same_j--;
+			   if(same_j==-1) break;
+		   }
+		   if(same_j==-1)  //说明找到了
+		   {
+		      next.push_back(j+1);
+			  break;
+		   }
+	   }
+	   if(j==-1) next.push_back(-1); 到这里都没找到，说明还是没有了相同性的。因为 j 所有可能的合法的位置都遍历光了；
+   }
 }
 
 说明：这里复习以下 next[i] 的内容，位置 next[i] 的字符  等于位置 i 的字符；并且这种相同性一致会向前推；
 比如   S：ABCDAB|ACDE   i = 5; next[i] = 1;
-再复习一下概念： S[next[i]] 一个最大的，且可以到达s[0]的 字符串的 尾坐标；
 
-所以我们不需要在对比的过程中，将j一个字符一个字符的向前挪动，而直接找到 next[j] 这个唯一可能到达头部的，且相同的字串的尾部；
+所以我们可以把问题分解成：
+逐个找到 S[i-1] 的 next 值 i_1_next;，并且判断 S[i_1_next + 1] 和 s[i] 是否相等，如果相等，就说明这个串可能是，值得一对比；
+如果不相等，说明这个串是不可能的；
+
+简单的说就是找到  S[i-1] 的 next 值，然后再用他后面的字符和 S[i] ，只有二者相同，这个串才有可能是 正确的；
+如果不同，那就排除他，继续向前寻找下一个 可能位置，如何寻找呢？  可以直接用  
+
+第一次 确认：next_j = S[i-1];
+之后循环：   next_j = S[next_j]
+
+
 并继续向前推进对比；如果依然不同，我们继续从 位置 next[j] 开始，继续往前，寻找下一个可能性的下标；
 同样的，我们依然不需要往前挪动一个位置，而是继续寻找 next[j] 对应的 next[] 坐标，直到 -1 或者对比成功为止；
 
@@ -230,38 +240,37 @@ void get_next(const my_string &p, vector<int> &next)
 	next.push_back(-1);
 	for (int i = 1; i < p.size() - 1; i++) //这里O(n)
 	{
-		int j = i - 1;
-		if (j == -1)
+		time++;
+		cout << i << endl;
+		int j = i - 1; // 找到前一个
+
+		for (j = next[j]; j >= -1; j = next[j])
 		{
-			next[i] = -1;
 			time++;
-			continue;
-
-		}
-
-		for( ;j>=0;j=next[j])       // 这里可以视为O（1）
-		{
-			int same_i = i;
-			int same_j = j;
-			while (p[same_i] == p[same_j] && same_j >= 0) // 这里一般是 O(1)
+			//逐个寻找 可能的 j
+			if (p[j + 1] == p[i]) // 这个位置值得一试
 			{
-				time++;
-				same_i--;
-				same_j--;
+				int same_j = j;
+				int same_i = i - 1;
+				while (p[same_j] == p[same_i])
+				{
+					time++;
+					same_j--;
+					same_i--;
+					if (same_j < 0) break;
+				}
+				if (same_j == -1) //找到了
+				{
+					next.push_back(j + 1);
+					break;
+				}
 			}
-			if (same_j == -1)
+
+			if (j == -1) //j 在这里如果等于-1 ，那么 经过判断已经可以确定没有了 的时候直接跳就行了
 			{
-				//找到了 赶紧溜
-				next.push_back(j);
-				time++;
+				next.push_back(-1);
 				break;
 			}
-		}
-		//遍历完了都没有成功的，只能是 -1； ps:被我提前填满了 -2；
-		if (next.size() <= i)
-		{
-			next.push_back(-1);
-			time++;
 		}
 	}
 	cout << "get_next:" << time << endl;
