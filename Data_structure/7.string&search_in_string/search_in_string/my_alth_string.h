@@ -212,16 +212,41 @@ int string_hash(my_string s);
 void get_ss(my_string& s, vector<int>& ss);
 void get_gs(my_string& s, vector<int>& ss, vector<int>& gs);
 
-int BMP(const my_string &p, const my_string &s)
+int BMP(const my_string &s, const my_string &p)
 {
-	vector<int> next; //先填满-2 表示这个位置还没 处理过
-	get_next(p, next);
+	vector<int> next; 
+	get_next(s, next);
 	int i = 0;
 	int j = 0;
 	int p_len = p.size();
 	int s_len = s.size();
+	for (int i = 0; i < p_len - s_len - 2;)       //O(N)
+	{
+		if (p[i] == s[j])  // 如果发现了相同的一位，进去试试
+		{
+			int same_i = i;
+			int same_j = 0;
 
-	while (i < p_len&& j < s_len)
+			while (p[same_i] == s[same_j]) //O(1)
+			{
+				same_i++;
+				same_j++;
+				if (same_j >= s_len - 1) return i; //找到了的位置,如果没有找到的话，也可以确定第 same_j 个字符失配了；
+			}
+		    //在 same_j 这个下标失配了
+			i = i + same_j - (next[same_j]+1); //调整 i 继续
+			continue;
+		    //P: ABCDAB | DABCDABACDE
+			//S：ABCDAB | ACDE
+			// i = 0; same_j = 6; next[same_j] = 1;
+			// i 可以移动： same_j - （next[same_j]+1) 个位置
+		}
+		i++;
+	}
+	return -1;
+
+	//标准版本 逻辑比较让人捉急
+	/*while (i < p_len&& j < s_len)
 	{
 		if (j == -1 || p[i] == s[j])
 		{
@@ -231,7 +256,7 @@ int BMP(const my_string &p, const my_string &s)
 		else j = next[j];
 	}
 	if (j == s_len) return i - j;
-	else return -1;
+	else return -1;*/
 }
 
 void get_next(const my_string &p, vector<int> &next)
