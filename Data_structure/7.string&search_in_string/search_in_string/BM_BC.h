@@ -1,47 +1,10 @@
 ﻿#pragma once
 #include "my_string.h"
 /*
-BM_BC 算法：
-----------------------------------------------------------------------------------------------------------------
-思路： 坏字符算法，因为基于这样一种思路形成的 “如果 总串 P 和查找串 S 的从后往前某个位置不符，我们可以迅速拖动
-       一个可能符合字母过来对齐”的思路，即1.从后往前对比思想（因为不符合情况居多） 2.对比拖动字符串思想 的结合
-	   例如
-	   P: ACDRSGL|SDXSDIWERQO
-	   S: SLOWIEO|
-	   i = 0,j = 6;
+BM_GS 算法
+-------------------------------------------------------------------------------------------------------
+是对 BM_BC 算法的一种改进，主要是针对 当
 
-	   对比的时候，最后一个字符就不符合，那么我们就可以做以下两步操作：
-	   1.在S串最后一位 往前寻找 与 P[i+j] 符合的字母
-	   2.将这个字符和 p[i+j] 对齐，并且重新从尾部进行对比
-
-所以按照这个思路，我们需要直到查找串中，各种情况，每个字符出现的位置，方便进行对比。
-数组 bc 存储的就是 查找串字符存储的信息；
-
-标准的方法是：仅仅存储该字符 最靠后出现的位置。
-
-为什么不用链表把位置从前到后都存储了？复杂度也是O（N)
-因为如果查找串中有大量的重复字符，那么 可能 bc 的某个节点的表长度，也会近似 O（n)
-那么在循环查找中，获取 位置信息的操作 每次就从 O（1） 变成了 O（n).而且也可能某一步用了O（n)的操作
-也仅仅挪动了 1 个单位。
-
-总体匹配最坏的情况下，就是O(N^N) （不过感觉也还好，值得一试）
-
-BC数组的构建： BC数组存储的是查找串 S 中每个字符出现的最后的一个位置，且能在O（1）情况下获取数据
-               所以BC数组的长度，是所有可能是的字符个数：127，下标为 0~126
-			   BC数组中每个位置 bc[i] 意味着： 第i个字符，最后一次出现的位置，例如：
-
-			   bc[97] = 3;     97在字符表中是'a' ，就是说 S 串中 a 最后出现的位置是 下标3
-
-              而BC数组的构建，就直接遍历一次查找串，并且用后面的覆盖前面的：
-			  for(int i = 0; i < s.size();i++)
-			  {
-			        char c = s[i];    // 位置的字符
-					bc[c] = i;        // 更新字符在表中的位置
-			  }
-
-实际查找中，使用bc表获得字符最后出现的位置的时候，可能会出现2种情况：
-
-(1):
 P: ACDRSGL|SLXSDIWERQO
 S: SLOWIEO|SL
 i = 0,j = 6;
@@ -49,41 +12,96 @@ char c = p[i+j] = L;
 bc[c] = 8;
 
 bc[c] > j;  //  最后一次出现的在对比位置之后，那么我们如果要对齐，就必须把S串拖回来，这样
-            //  对比问题反而扩大了，所以简单的往后移动一个位置就可以了；
+//  对比问题反而扩大了，所以简单的往后移动一个位置就可以了；
 
-(2):
-P: ACDRSGL|SDXSDIWERQO
-S: SLOWIEO|
-i = 0,j = 6;
-char c = p[i+j] = L;
-bc[c] = 1;
+这种只能+1的情况进行处理的；
 
-bc[c] < i;  //  最后一次出现的位置在前面，这个是我们最乐于见到的，因为可以把 s[1] 拖过来进行重新
-            //  对齐和进行对比；
+我们的目的： 当这种只能移动1个单位的情况，我们想通过一个合理的办法在可以接受u成本的情况下移动多个
 
-相等情况是不会出现的，因为这个位置出现了失配，所以不可能相等。
+步骤：
+第一大步.我们要构造一个 ss 数组；而 ss 的内容： 查找串中 for(i=1;i<size()-2) 的情况下，
+将 S[i]~S[0] 和 S[size-1]~s[i] 进行比对，寻找最长的子字符串的长度
+例如：
 
-（*）伪代码：
+I 后半部分的比较必须从尾部开始：O（n^n) // n = 查找串的长度
 
-bc[] = get(bc,s); //获取bc数组
-for(int i = 0;i<p.size()-s.size()-2;)
+                      i          ss
+S: S|SLOWIEOSLO       0          0
+S: SS|LOWIEOSLO       1          0
+S: SSL|OWIEOSLO       2          0
+S: SSLO|WIEOSLO       3          3 //SLO
+S: SSLOW|IEOSLO       4          3
+S: SSLOWI|EOSLO       5          3
+S: SSLOWIE|OSLO       6          3
+S: SSLOWIEO|SLO       7          3
+S: SSLOWIEOS|LO       8          2
+S: SSLOWIEOSL|O       9          1
+S：SSLOWIEOSLO|       10         10
+
+ss[]存储的内容是： 当 i 在不同位置切割查找串的时候，前半部分和后半部分相同的 字符的 #长度#.
+我们可以根据3种情况，来判断移动的距离生成GS
+
+
+第二大步：生成GS[] 确定移动的数位
+A.如果在坏字符判断之后，我们在好字符模式同样没有找到可以匹配的情况，ss[i] = 0;
+  这时候，我们可以判断，前面的位置 没有字符和 s[s.size()-1] 相匹配了，所以这种情况的话
+  我们可以 直接拖动 s.size()个字符：
+
+  P: ACDRSEL|SLXSDIWERQO
+  S: AESLIEO|SL
+
+  i = 6;
+  ss[i] = 0;
+  无法确认移动的数量，暂定1好了
+
+ B.如果ss[i]!=0 而且 ss[i] = i+1:
+
+  P: AC|DRSELSLXSDIWERQO
+  S: SL|DRSELSL
+
+  i = 1;
+  ss[i] = 2;
+  移动距离为：将S拖过去对齐， s.size()-(ss[i]+1) = 7;
+
+ C.如果ss[i] !0 但是 ss[i]!=i+1;
+
+  P: AC|DRSELSLXSDIWERQO
+  S: SS|DRSELSL
+
+  i=1;
+  ss[i] = 1;
+  移动的距离为： ss[i] = 1 个单位
+
+
+然后对BM_BC的算法，适当进行修改即可：
+
+s:查找串 p：总串
+
+vector<int> bc(256,-1);
+vector<int> ss,gs;
+get_bc(s,bc);
+get_ss(s,ss);
+get_gs(s,gs,ss);
+
+for (int i = 0; i < p.size() - s.size() - 2; )
 {
-    j = s.size()-1;//字符出最后位置的下标
-	while(p[i+j]==s[j])
+	int j = s.size()-1;
+	while (p[i + j] == s[j])
 	{
-	    if(j==0) return i;
-	    j--;
+		if (j == 0) return i;
+		j--;
 	}
-	//到此表示 i+j 的字符 出现了不匹配情况
-	temp = bc[p[i+j]; //找到位置；
-	if(temp>i) i++;
-	else i = i + (s.size() - 1 - bc[p[i+j]];
+	if (bc[p[i + j]] >= j) i = i+gs[j];         // if (bc[p[i + j]] > j) i++;  仅修改这里
+	else i = i + (s.size() - bc[p[i + j]] - 1);
 }
 return -1;
 */
 
-
 using namespace std;
+
+void get_bc(my_string& s, vector<int>& bc);
+void get_ss(my_string& s, vector<int>& ss);
+void get_gs(my_string& s, vector<int>& ss, vector<int>& gs);
 
 /*
 	get_bc 得到字符位置
@@ -93,11 +111,46 @@ using namespace std;
 
 
 */
-void get_bc(my_string& p, vector<int>& bc)
+
+int BM_GS(my_string &p,my_string &s)
 {
-	for (int i = 0; i < p.size(); i++)
+	// i 对齐位置  j 查找串下标
+	int i = 0;
+	vector<int> bc(256, -1);
+	vector<int> ss;
+	vector<int> gs;
+
+	int p_len = p.size();
+	int s_len = s.size();
+	int j = s_len - 1;
+	get_bc(s, bc);
+	get_ss(s, ss);
+	get_gs(s, ss, gs);
+
+	for (int i = 0; i < p.size() - s.size() - 2;)
 	{
-		char temp = p[i];
+		int j = s.size() - 1;
+		while (p[i + j] == s[j])
+		{
+			if (j == 0) return i;
+			j--;
+		}
+
+		if (bc[s[j]] >= j)
+		{
+			i = i + gs[j];
+			//i++
+		}
+		else i = i + (s.size() - bc[p[i + j]] - 1);
+	}
+	return -1;
+}
+
+void get_bc(my_string& s, vector<int>& bc)
+{
+	for (int i = 0; i < s.size(); i++)
+	{
+		char temp = s[i];
 		bc[temp] = i;  // bc[temp] 就是 p[i]的字符 在 bc中的下标，然后将其出现的位置，存储到bc中，就可以直接通过 字符查找最后出现的位置
 	}
 }
@@ -112,23 +165,55 @@ void get_bc(my_string& p, vector<int>& bc)
 			 1.3 如果不存在， 则可以直接前进到头使得s[0] 与 p[i+j+1] 进入下一轮比对
 
 */
-int BM_BC(my_string &p,my_string &s)
-{
-	// i 对齐位置  j 查找串下标
-	vector<int> bc(256,-1);
-	get_bc(p,bc);
 
-	for (int i = 0; i < p.size() - s.size() - 2; i++)
+
+/*
+	get_ss 思路： 遍历后串，向前推进，永远和前串最后一个字符开始对比
+	* rank 遍历位置
+	* j 后串位置, j=s.size()-1; j<1;
+
+	2.找到 rank切分的两个子串的最大子串 字符个数
+	3.max_size = 0; 并从后往前遍历 前字串，寻找最大值 并赋予 max_szie
+	4.将max_size压入ss[rank] 中
+*/
+void get_ss(my_string &s, vector<int>& ss)
+{
+	using rank = int;
+	ss = vector<int>(s.size(), 0);
+
+	for (rank i = s.size() - 2; i >= 0; i--)//遍历s 复杂度 O(s)
 	{
-		int j = s.size()-1;
-		while (p[i + j] == s[j])
+		//same 最后一位
+		// baba|ca
+		int same = s.size()-1;
+		int j = i ;
+
+		while (s[j] == s[same])
 		{
-			if (j == 0) return i;
+			if (j < 0) break;
 			j--;
+			same--;
 		}
-		if (bc[p[i + j]] > j) i++;
-		else i = i + (s.size() - bc[p[i + j]] - 1);
+		ss[i] = s.size() - 1 - same;
+
 	}
-	return -1;
+	ss[ss.size()-1]=s.size();
 }
+
+void get_gs(my_string &s, vector<int>& ss, vector<int>& gs)
+{
+  	for (int i = 0; i < s.size()-1; i++)
+	{
+		//三种情况
+		if (ss[i] == 0) gs.push_back(1);
+		else if (ss[i]!=0 && ss[i] == i + 1) gs.push_back(s.size()-1-ss[i]);
+		else gs.push_back(ss[i]);
+	}
+	gs.push_back(1);
+
+	for (int i = 0; i < gs.size(); i++)
+		cout << "gs_" << i << ":" << gs[i] << endl;
+}
+
+
 
